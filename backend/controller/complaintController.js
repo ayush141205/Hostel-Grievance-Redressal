@@ -1,70 +1,124 @@
-const express = require("express");
-const cors = require("cors");
-const app = express();
 const db = require("../db");
-const { jwtGenerator, jwtDecoder } = require("../utils/jwtToken");
+const { jwtDecoder } = require("../utils/jwtToken");
 
-app.use(cors());
-app.use(express.json());
-
+// ========================
+// Decode user from token
+// ========================
 const decodeUser = async (token) => {
   try {
     const decodedToken = jwtDecoder(token);
-    console.log(decodedToken);
-
     const { user_id, type } = decodedToken.user;
     let userInfo;
 
+    // ---- STUDENT ----
     if (type === "student") {
-      const query = `
-        SELECT student_id, room, block_id
-        FROM student 
-        WHERE student_id = $1
-      `;
+      const result = await db.pool.query(
+        `SELECT student_id, room, block_id FROM student WHERE student_id = $1`,
+        [user_id]
+      );
 
-      const result = await db.pool.query(query, [user_id]);
-      console.log(result.rows);
-      if (result.rows.length > 0) {
+      if (result.rows.length === 0) {
+        console.warn(
+          `⚠️ No student record found for user_id ${user_id}. Creating one...`
+        );
+
+        // Ensure at least one block exists
+        const blockRes = await db.pool.query(`
+          INSERT INTO block (block_name)
+          VALUES ('Default Block')
+          ON CONFLICT DO NOTHING
+          RETURNING block_id
+        `);
+
+        const block_id =
+          blockRes.rows.length > 0
+            ? blockRes.rows[0].block_id
+            : (await db.pool.query("SELECT block_id FROM block LIMIT 1"))
+                .rows[0].block_id;
+
+        // Create missing student record
+        const insertRes = await db.pool.query(
+          `INSERT INTO student (student_id, room, block_id)
+           VALUES ($1, $2, $3)
+           RETURNING student_id, room, block_id`,
+          [user_id, "Unassigned", block_id]
+        );
+        userInfo = insertRes.rows[0];
+        console.log(`✅ Created missing student record for user_id ${user_id}`);
+      } else {
         userInfo = result.rows[0];
       }
     }
 
+    // ---- WARDEN ----
     if (type === "warden") {
-      const query = `
-        SELECT warden_id,  block_id
-        FROM warden 
-        WHERE warden_id = $1
-      `;
+      const result = await db.pool.query(
+        `SELECT warden_id, block_id FROM warden WHERE warden_id = $1`,
+        [user_id]
+      );
 
-      const result = await db.pool.query(query, [user_id]);
+      if (result.rows.length === 0) {
+        console.warn(
+          `⚠️ No warden record found for user_id ${user_id}. Creating one...`
+        );
 
-      if (result.rows.length > 0) {
+        // Ensure at least one block exists
+        const blockRes = await db.pool.query(`
+          INSERT INTO block (block_name)
+          VALUES ('Default Block')
+          ON CONFLICT DO NOTHING
+          RETURNING block_id
+        `);
+
+        const block_id =
+          blockRes.rows.length > 0
+            ? blockRes.rows[0].block_id
+            : (await db.pool.query("SELECT block_id FROM block LIMIT 1"))
+                .rows[0].block_id;
+
+        // Create missing warden record
+        const insertRes = await db.pool.query(
+          `INSERT INTO warden (warden_id, block_id)
+           VALUES ($1, $2)
+           RETURNING warden_id, block_id`,
+          [user_id, block_id]
+        );
+        userInfo = insertRes.rows[0];
+        console.log(`✅ Created missing warden record for user_id ${user_id}`);
+      } else {
         userInfo = result.rows[0];
       }
     }
 
     return userInfo;
   } catch (err) {
-    console.error("here111", err.message);
+    console.error("decodeUser() error:", err.message);
   }
 };
 
-exports.postComplaints = async (req, res) => {
+// ========================
+// Post a complaint
+// ========================
+const postComplaints = async (req, res) => {
   try {
     const token = req.headers.authorization;
-    console.log(token);
     const userInfo = await decodeUser(token);
 
+    if (!userInfo) {
+      return res
+        .status(400)
+        .json({ error: "Unable to resolve user information." });
+    }
+
     const { student_id, block_id } = userInfo;
+    const { name, description, room } = req.body;
 
-    const { name, description, room, is_completed, assigned_at } = req.body;
-
-    const query = `insert into complaint 
-            (name, block_id, 
-            student_id, 
-            description, room, is_completed, created_at,
-            assigned_at) 
-            values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`;
+    const query = `
+      INSERT INTO complaint 
+      (name, block_id, student_id, description, room, is_completed, created_at, assigned_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
 
     const newComplaint = await db.pool.query(query, [
       name,
@@ -76,19 +130,22 @@ exports.postComplaints = async (req, res) => {
       new Date().toISOString(),
       null,
     ]);
+
     res.json(newComplaint.rows[0]);
   } catch (err) {
-    console.log(err.message);
+    console.error("postComplaints error:", err.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-exports.putComplaintsByid = async (req, res) => {
-  const token = req.headers.authorization;
-  const decodedToken = jwtDecoder(token);
-  console.log(decodedToken);
-  const { user_id, type } = decodedToken.user;
-
+// ========================
+// Toggle complaint status (warden only)
+// ========================
+const putComplaintsByid = async (req, res) => {
   try {
+    const token = req.headers.authorization;
+    const decodedToken = jwtDecoder(token);
+    const { type } = decodedToken.user;
     const { id } = req.params;
 
     if (type === "warden") {
@@ -98,23 +155,23 @@ exports.putComplaintsByid = async (req, res) => {
       );
       res.json(result.rows[0]);
     } else {
-      res.status(404).json({ error: "Complaint not found" });
+      res.status(403).json({ error: "Unauthorized" });
     }
   } catch (err) {
-    console.log(err.message);
+    console.error("putComplaintsByid error:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-exports.getAllComplaintsByUser = async (req, res) => {
-  const token = req.headers.authorization;
-  console.log(token);
-  const decodedToken = jwtDecoder(token);
-  console.log(decodedToken);
-
-  const { user_id, type } = decodedToken.user;
-
+// ========================
+// Get complaints (warden = all, student = own)
+// ========================
+const getAllComplaintsByUser = async (req, res) => {
   try {
+    const token = req.headers.authorization;
+    const decodedToken = jwtDecoder(token);
+    const { user_id, type } = decodedToken.user;
+
     if (type === "warden") {
       const allComplaints = await db.pool.query(
         "SELECT * FROM complaint ORDER BY created_at DESC"
@@ -130,82 +187,93 @@ exports.getAllComplaintsByUser = async (req, res) => {
       res.status(403).json({ error: "Unauthorized" });
     }
   } catch (err) {
-    console.error(err.message);
+    console.error("getAllComplaintsByUser error:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-exports.getUserType = async (req, res) => {
+// ========================
+// Get user type
+// ========================
+const getUserType = async (req, res) => {
   try {
     const token = req.headers.authorization;
-    console.log(token);
     const decodedToken = jwtDecoder(token);
-    console.log(decodedToken);
     const { type } = decodedToken.user;
 
     res.json({ userType: type });
   } catch (err) {
-    console.error(err.message);
+    console.error("getUserType error:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-exports.getUserDetails = async (req, res) => {
+// ========================
+// Get user details
+// ========================
+const getUserDetails = async (req, res) => {
   try {
     const token = req.headers.authorization;
-    console.log(token);
     const decodedToken = jwtDecoder(token);
-    console.log(decodedToken);
     const { user_id, type } = decodedToken.user;
 
-    console.log("Decoded Token:", decodedToken);
-
-    console.log("User Type:", type);
-
-    console.log("User ID:", user_id);
-
-    if (type == "student") {
+    if (type === "student") {
       const studentDetails = await db.pool.query(
         `SELECT u.full_name, u.email, u.phone, s.usn, b.block_id, b.block_name, s.room
-      FROM users u, student s, block b
-      WHERE u.user_id = $1 AND u.user_id = s.student_id AND s.block_id = b.block_id`,
+         FROM users u
+         JOIN student s ON u.user_id = s.student_id
+         JOIN block b ON s.block_id = b.block_id
+         WHERE u.user_id = $1`,
         [user_id]
       );
       res.json(studentDetails.rows);
-    }
-    if (type == "warden") {
+    } else if (type === "warden") {
       const wardenDetails = await db.pool.query(
-        `select u.full_name,u.email,u.phone
-                                                  from users u 
-                                                  where user_id=$1 `,
+        `SELECT u.full_name, u.email, u.phone
+         FROM users u
+         WHERE u.user_id = $1`,
         [user_id]
       );
       res.json(wardenDetails.rows);
+    } else {
+      res.status(403).json({ error: "Unauthorized" });
     }
   } catch (err) {
-    console.error(err.message);
+    console.error("getUserDetails error:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-exports.deleteComplaints = async (req, res) => {
+// ========================
+// Delete complaint (warden only)
+// ========================
+const deleteComplaints = async (req, res) => {
   try {
     const token = req.headers.authorization;
-    console.log(token);
     const decodedToken = jwtDecoder(token);
-    console.log(decodedToken);
     const { type } = decodedToken.user;
     const { id } = req.params;
 
-    if (type == "warden") {
-      const deleteComplaint = await db.pool.query(
-        `delete from complaint where id = $1`,
-        [id]
-      );
-      res.json("complaint deleted");
+    if (type === "warden") {
+      await db.pool.query(`DELETE FROM complaint WHERE id = $1`, [id]);
+      res.json({ message: "Complaint deleted" });
+    } else {
+      res.status(403).json({ error: "Unauthorized" });
     }
   } catch (err) {
-    console.log(err.message);
+    console.error("deleteComplaints error:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
+};
+
+// ========================
+// Exports
+// ========================
+module.exports = {
+  postComplaints,
+  putComplaintsByid,
+  getAllComplaintsByUser,
+  getUserType,
+  getUserDetails,
+  deleteComplaints,
 };

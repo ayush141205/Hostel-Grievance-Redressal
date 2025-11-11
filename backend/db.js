@@ -1,17 +1,22 @@
+require("dotenv").config();
 const Pool = require("pg").Pool;
 
 const pool = new Pool({
-  user: "postgres",
-  password: "chinmay.1221",
-  host: "localhost",
-  port: 5432,
-  database: "hostel"
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 pool.on("error", (error, client) => {
-  console.log(error);
+  console.error("Database error:", error);
+});
+
+// Test connection
+pool.on("connect", () => {
+  console.log("Connected to Neon database");
 });
 
 module.exports = {
-  pool
+  pool,
 };

@@ -3,7 +3,7 @@ import { Roles } from "../constants";
 import { useState } from "react";
 
 function Register() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,20 +40,24 @@ function Register() {
       }
       const response = await fetch("http://localhost:3000/register", {
         method: "POST",
-        headers: { "content-type": "application/json " },
+        headers: { "Content-Type": "application/json" }, // <-- FIX: Removed trailing space
         body: JSON.stringify(body),
       });
-      console.log(response);
+
       const data = await response.json();
       console.log(data);
-      if (data.jwtToken) {
-        alert("User registered successfully,login to proceed");
-        navigate('/login')
+
+      // <-- FIX: Improved error handling
+      if (response.ok && data.jwtToken) {
+        alert("User registered successfully, login to proceed");
+        navigate("/login");
       } else {
-        alert("user already exists");
+        // Show the actual error message from the backend
+        alert(data.error || "Registration failed. Please try again.");
       }
     } catch (err) {
       console.log(err.message);
+      alert("An error occurred. Please check the console.");
     }
   };
 
@@ -79,7 +83,7 @@ function Register() {
                   <rect x="0" y="0" width="100%" height="100%" fill="none" />
                   <path
                     d="M11 6a5 5 0 01-5 5 5 5 0 01-5-5 5 5 0 015-5 5 5 0 015 5"
-                    stroke-width="1"
+                    strokeWidth="1" // <-- FIX: Changed stroke-width to strokeWidth
                     stroke="none"
                     fill="currentColor"
                   />
@@ -111,7 +115,7 @@ function Register() {
                   <rect x="0" y="0" width="100%" height="100%" fill="none" />
                   <path
                     d="M11 6a5 5 0 01-5 5 5 5 0 01-5-5 5 5 0 015-5 5 5 0 015 5"
-                    stroke-width="1"
+                    strokeWidth="1" // <-- FIX: Changed stroke-width to strokeWidth
                     stroke="none"
                     fill="currentColor"
                   />
@@ -151,7 +155,7 @@ function Register() {
                   <div className="flex justify-between">
                     <label
                       className="mb-2 inline-block text-xs font-medium uppercase text-gray-700"
-                      htmlFor="password"
+                      htmlFor="fullname" // <-- FIX: Changed from 'password'
                     >
                       Full Name
                     </label>
@@ -159,6 +163,7 @@ function Register() {
                   <div className="relative flex w-full flex-wrap items-stretch">
                     <input
                       type="text"
+                      id="fullname" // <-- FIX: Added id
                       className="relative block flex-auto cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
                       name="full-name"
                       placeholder="Enter your full name"
@@ -178,7 +183,7 @@ function Register() {
                     <input
                       type="text"
                       className="block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
-                      id="email"
+                      id="email" // This ID is fine, as long as others are different
                       name="email-username"
                       placeholder="Enter your email "
                       autoFocus
@@ -187,15 +192,16 @@ function Register() {
                   </div>
                   <div className="flex-1">
                     <label
-                      htmlFor="password"
+                      htmlFor="phone" // <-- FIX: Changed from 'password'
                       className="mb-2 inline-block text-xs font-medium uppercase text-gray-700"
                     >
                       Phone Number
                     </label>
                     <input
                       type="text"
+                      id="phone" // <-- FIX: Added id
                       className="block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
-                      name="password"
+                      name="phone" // <-- FIX: Changed name
                       placeholder="Enter your phone number"
                       onChange={(e) => setPhone(e.target.value)}
                     />
@@ -205,7 +211,7 @@ function Register() {
                 <div className="mb-4 flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
                   <div className="flex-1">
                     <label
-                      htmlFor="email"
+                      htmlFor="block_id" // <-- FIX: Changed from 'email'
                       className="mb-2 inline-block text-xs font-medium uppercase text-gray-700"
                     >
                       Block ID
@@ -215,25 +221,25 @@ function Register() {
                       className={`block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow ${
                         role === Roles.WARDEN && "w-full"
                       }`}
-                      id="email"
-                      name="email-username"
+                      id="block_id" // <-- FIX: Changed from 'email'
+                      name="block_id" // <-- FIX: Changed name
                       placeholder="Enter your Block ID"
-                      autoFocus
                       onChange={(e) => setBlock_id(e.target.value)}
                     />
                   </div>
                   {role === Roles.WARDEN ? null : (
                     <div className="flex-1">
                       <label
-                        htmlFor="password"
+                        htmlFor="room" // <-- FIX: Changed from 'password'
                         className="mb-2 inline-block text-xs font-medium uppercase text-gray-700"
                       >
                         Room
                       </label>
                       <input
                         type="text"
+                        id="room" // <-- FIX: Added id
                         className="block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
-                        name="password"
+                        name="room" // <-- FIX: Changed name
                         placeholder="Enter your Room"
                         onChange={(e) => setRoom(e.target.value)}
                       />
@@ -248,22 +254,24 @@ function Register() {
                     }
                   >
                     {role === Roles.STUDENT && (
-                      <>
+                      <div className="mb-4">
+                        {" "}
+                        {/* <-- FIX: Added div wrapper */}
                         <label
-                          htmlFor="email"
+                          htmlFor="usn" // <-- FIX: Changed from 'email'
                           className="mb-2 inline-block text-xs font-medium uppercase text-gray-700"
                         >
                           USN
                         </label>
                         <input
                           type="text"
+                          id="usn" // <-- FIX: Added id
                           className="block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
-                          name="email-username"
+                          name="usn" // <-- FIX: Changed name
                           placeholder="Enter your USN"
-                          autoFocus
                           onChange={(e) => setUsn(e.target.value)}
                         />
-                      </>
+                      </div>
                     )}
                     <label
                       htmlFor="password"
@@ -273,7 +281,7 @@ function Register() {
                     </label>
                     <input
                       type="password"
-                      id="password"
+                      id="password" // This one is correct
                       className="relative block w-full cursor-text appearance-none rounded-md border border-gray-400 bg--100 py-2 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white focus:text-gray-600 focus:shadow"
                       name="password"
                       placeholder="············"
