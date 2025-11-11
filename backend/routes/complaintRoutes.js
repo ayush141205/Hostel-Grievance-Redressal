@@ -6,7 +6,7 @@ const {
   getAllComplaintsByUser,
   getUserType,
   getUserDetails,
-  deleteComplaints
+  deleteComplaints,
 } = require("../controller/complaintController");
 const { authorizeWarden } = require("../middleware/auth");
 
