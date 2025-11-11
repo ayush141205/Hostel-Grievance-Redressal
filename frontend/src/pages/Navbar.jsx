@@ -15,14 +15,31 @@ function Navbar() {
     <>
       <header className="shadow bg-white fixed w-full z-10 top-0">
         <div className="relative flex max-w-screen-xl flex-col overflow-hidden px-4 py-4 md:mx-auto md:flex-row md:items-center">
-          <a href="/" className="flex items-center whitespace-nowrap text-2xl font-black">
-            <span className="text-black">SJCE Boy's Hostel</span>
+          <a
+            href="/"
+            className="flex items-center whitespace-nowrap text-2xl font-black"
+          >
+            <span className="text-black">AIET Hostel</span>
           </a>
           <input type="checkbox" className="peer hidden" id="navbar-open" />
-          <label className="absolute top-5 right-7 cursor-pointer md:hidden" htmlFor="navbar-open">
+          <label
+            className="absolute top-5 right-7 cursor-pointer md:hidden"
+            htmlFor="navbar-open"
+          >
             <span className="sr-only">Toggle Navigation</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </label>
           <nav
@@ -31,7 +48,7 @@ function Navbar() {
           >
             <ul className="flex flex-col items-center space-y-2 md:ml-auto md:flex-row md:space-y-0">
               <li className="text-gray-600 md:mr-12 hover:text-blue-600">
-                <Link to="/account">Account</ Link>
+                <Link to="/account">Account</Link>
               </li>
               <li className="text-gray-600 md:mr-12 hover:text-blue-600">
                 <button
